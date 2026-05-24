@@ -221,19 +221,42 @@ export default {
 
     try {
       const { fmt, clientUsed } = await getAudioFormat(videoId, env?.YT_COOKIE);
-      const range = request.headers.get('Range');
+
+      // Use the same User-Agent for the audio fetch as we used to extract.
+      const allClients = [WEB_CLIENT, ...ANON_CLIENTS];
+      const matchUA =
+        allClients.find(c => c.label === clientUsed)?.userAgent ||
+        'Mozilla/5.0';
+
+      // Always send a Range header upstream — without it, googlevideo throttles
+      // to playback rate (~2 KB/s). With Range: bytes=0- it serves full speed.
+      const clientRange = request.headers.get('Range');
+      const upstreamRange = clientRange || 'bytes=0-';
       const upstream = await fetch(fmt.url, {
-        headers: range ? { Range: range } : {},
+        headers: { Range: upstreamRange, 'User-Agent': matchUA },
       });
       if (!upstream.ok && upstream.status !== 206) {
         return cors(`Upstream ${upstream.status}`, { status: 502 });
       }
+
       const headers = { ...CORS_HEADERS, 'X-Client-Used': clientUsed };
-      for (const h of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
-        const v = upstream.headers.get(h);
-        if (v) headers[h] = v;
+      if (clientRange) {
+        // Client asked for a range — pass everything through.
+        for (const h of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+          const v = upstream.headers.get(h);
+          if (v) headers[h] = v;
+        }
+        return new Response(upstream.body, { status: upstream.status, headers });
+      } else {
+        // We sent Range: bytes=0- for throttle bypass but the client didn't
+        // ask for a range. Return 200 with the full Content-Length so audio
+        // decoders don't get confused by an unexpected 206.
+        for (const h of ['content-type', 'content-length']) {
+          const v = upstream.headers.get(h);
+          if (v) headers[h] = v;
+        }
+        return new Response(upstream.body, { status: 200, headers });
       }
-      return new Response(upstream.body, { status: upstream.status, headers });
     } catch (e) {
       return cors(`Error: ${e.message}`, { status: 500 });
     }
