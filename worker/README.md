@@ -43,9 +43,41 @@ We pick the **lowest-bitrate audio-only** format (typically Opus or AAC, ~50–6
 
 Cloudflare Workers Free: **100,000 requests/day**. One song = 2 requests (InnerTube call + audio fetch). ≈ 50,000 songs/day. Personal use is nowhere near this.
 
+## YouTube cookie (recommended)
+
+Anonymous extraction works for some videos but YouTube's PoToken rollout blocks many popular/restricted ones. Pasting your own YouTube session cookie into the Worker as a secret lets the WEB client extract anything you can normally play in a browser.
+
+### Get your cookie
+
+1. Open https://www.youtube.com in a browser **where you are logged in**
+2. Open DevTools → **Network** tab
+3. Click any video, then in the Network panel click any request to `www.youtube.com`
+4. In the right pane scroll to **Request Headers** → find `Cookie:` → **copy the entire value** (one long string with many `name=value;` pairs)
+
+### Store it as a Worker secret
+
+```bash
+cd worker
+npx wrangler secret put YT_COOKIE
+# wrangler prompts: paste the cookie string, press enter
+```
+
+Redeploy: `npx wrangler deploy`. Verify with:
+
+```bash
+curl https://<your-worker-url>/health
+# {"ok":true,"cookieConfigured":true,"clients":["WEB","ANDROID_VR","TV_EMBEDDED","ANDROID_TESTSUITE"]}
+```
+
+### Caveats
+
+- Every video the Worker fetches is **logged to your YouTube watch history / "recently watched"** because requests are authenticated as you. Use a throwaway Google account if that bothers you.
+- Cookies last roughly 1–2 years but session tokens rotate sooner. When you start seeing 401s from the WEB client, re-run `wrangler secret put YT_COOKIE` with a fresh cookie.
+- Never paste the cookie into the frontend code or anywhere it ends up in git. Worker secrets are encrypted at rest by Cloudflare.
+
 ## Maintenance
 
-When YouTube updates the Android client and our `clientVersion` falls out of compatibility, the Worker starts returning 502s. Fix: open [Android YouTube on apkmirror.com](https://www.apkmirror.com/apk/google-inc/youtube/) to find the current version string, update the constant at the top of `src/index.js`, redeploy. Has happened ~once a year historically.
+When YouTube updates client requirements and our `clientVersion` falls out of compatibility, the Worker starts returning 502s. Open [apkmirror.com YouTube](https://www.apkmirror.com/apk/google-inc/youtube/) for the latest Android version string, or check yt-dlp's `youtube.py` source for the currently-working client configs, update the constants at the top of `src/index.js`, redeploy. Happens roughly once a year.
 
 ## Local dev
 
