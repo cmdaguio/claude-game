@@ -17,3 +17,18 @@ button:disabled { opacity: 0.5; }
 #hud #combo { color: #6b7280; }
 #hud #lives { color: #ef4444; letter-spacing: 2px; }
 #game-canvas { display: block; width: 100vw; height: 100vh; background: white; touch-action: none; }
+
+/* HUD readability on mobile, safe-area aware */
+#hud {
+  padding-top: max(8px, env(safe-area-inset-top));
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: max(12px, env(safe-area-inset-right));
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Big tap-friendly buttons on mobile */
+button { min-height: 48px; min-width: 120px; }
+
+/* Prevent text selection during gameplay */
+#screen-playing, #game-canvas { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
