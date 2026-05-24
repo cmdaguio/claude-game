@@ -1,20 +1,22 @@
-// InnerTube client contexts. YouTube rotates which clients work; we try in
-// priority order. IOS has been most reliable for audio extraction in 2025;
-// ANDROID_TESTSUITE is a useful fallback; plain ANDROID often fails now.
+// InnerTube client contexts, tried in order. YouTube's PoToken rollout (2024–2025)
+// has broken IOS/ANDROID for direct extraction; the clients below still work
+// because they target devices YouTube hasn't tightened verification on.
+// Reference: yt-dlp's "tv_embedded" and "android_vr" clients.
 const CLIENTS = [
   {
-    label: 'IOS',
-    apiKey: 'AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc',
+    label: 'ANDROID_VR',
+    apiKey: 'AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w',
     userAgent:
-      'com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)',
+      'com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
     context: {
       client: {
-        clientName: 'IOS',
-        clientVersion: '19.45.4',
-        deviceMake: 'Apple',
-        deviceModel: 'iPhone16,2',
-        osName: 'iPhone',
-        osVersion: '17.5.1.21F90',
+        clientName: 'ANDROID_VR',
+        clientVersion: '1.60.19',
+        deviceMake: 'Oculus',
+        deviceModel: 'Quest 3',
+        osName: 'Android',
+        osVersion: '12L',
+        androidSdkVersion: 32,
         hl: 'en',
         gl: 'US',
         utcOffsetMinutes: 0,
@@ -22,29 +24,31 @@ const CLIENTS = [
     },
   },
   {
-    label: 'ANDROID_TESTSUITE',
+    label: 'TV_EMBEDDED',
     apiKey: 'AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w',
     userAgent:
-      'com.google.android.youtube/1.9 (Linux; U; Android 14) gzip',
+      'Mozilla/5.0 (PlayStation; PlayStation 4/12.00) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0 Safari/605.1.15',
     context: {
       client: {
-        clientName: 'ANDROID_TESTSUITE',
-        clientVersion: '1.9',
-        androidSdkVersion: 34,
+        clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
+        clientVersion: '2.0',
+        clientScreen: 'EMBED',
         hl: 'en',
         gl: 'US',
+      },
+      thirdParty: {
+        embedUrl: 'https://www.youtube.com/',
       },
     },
   },
   {
-    label: 'ANDROID',
+    label: 'ANDROID_TESTSUITE',
     apiKey: 'AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w',
-    userAgent:
-      'com.google.android.youtube/19.50.42 (Linux; U; Android 14) gzip',
+    userAgent: 'com.google.android.youtube/1.9 (Linux; U; Android 14) gzip',
     context: {
       client: {
-        clientName: 'ANDROID',
-        clientVersion: '19.50.42',
+        clientName: 'ANDROID_TESTSUITE',
+        clientVersion: '1.9',
         androidSdkVersion: 34,
         hl: 'en',
         gl: 'US',
@@ -89,9 +93,7 @@ async function fetchPlayer(videoId, client) {
   );
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(
-      `${client.label} HTTP ${res.status}: ${text.slice(0, 300)}`
-    );
+    throw new Error(`${client.label} HTTP ${res.status}: ${text.slice(0, 300)}`);
   }
   let data;
   try {
