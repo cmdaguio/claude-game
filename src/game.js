@@ -71,7 +71,10 @@ export class GameLoop {
   }
 
   _resize() {
-    const dpr = window.devicePixelRatio || 1;
+    // Cap DPR at 1 — solid black tiles don't benefit from retina rendering,
+    // but on a DPR=3 phone the cost is ~9x. The blue hit line and lane
+    // separators look fine at 1x for this UI.
+    const dpr = Math.min(window.devicePixelRatio || 1, 1);
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
     this.canvas.width = w * dpr;
@@ -141,13 +144,15 @@ export class GameLoop {
     ctx.lineTo(this.width, this.hitLineY);
     ctx.stroke();
 
-    // tiles
+    // tiles — tiles are sorted by time, so once we see one above the screen
+    // (not yet spawned), all later tiles are even further in the future.
     ctx.fillStyle = '#111';
-    for (const tile of this.tiles) {
+    for (let i = 0; i < this.tiles.length; i++) {
+      const tile = this.tiles[i];
       if (tile.consumed) continue;
       // Y = hitLineY - (tile.time - t) * FALL_SPEED   (Y grows downward)
       const y = this.hitLineY - (tile.time - t) * FALL_SPEED;
-      if (y < -TILE_HEIGHT) continue;
+      if (y < -TILE_HEIGHT) break; // future tile not yet spawned; rest are too
       if (y > this.height + TILE_HEIGHT) continue;
       const x = tile.lane * this.laneWidth + 4;
       const w = this.laneWidth - 8;
