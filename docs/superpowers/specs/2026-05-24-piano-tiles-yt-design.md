@@ -24,10 +24,46 @@ Out:
 
 ## Constraints
 
-- **Static hosting only** (GitHub Pages). No server-side code.
-- **YouTube ToS reality.** We do not download or persist the audio. We stream it through a public Piped instance, which is a moving target — instances die or get blocked. The UI must surface "audio source unavailable" gracefully and let the user swap to a fallback instance.
+- **Static frontend** on GitHub Pages. Audio source is a self-hosted Cloudflare Worker (free tier) — see "Audio source" below.
+- **YouTube ToS reality.** We do not persist audio. We proxy bytes through the Worker in real time. YouTube can rate-limit or block any IP, but a personal Worker has its own IP and isn't shared with abusive users — far more reliable than public Piped instances.
 - **Mobile audio gesture.** Browsers will not start audio without a user gesture. The "Start" button doubles as the audio-context unlock.
-- **No external bundler required.** Plain HTML + ES modules. `index.html` loads modules directly. This keeps GitHub Pages deployment trivial — push to `main`, done.
+- **No external bundler required.** Plain HTML + ES modules. `index.html` loads modules directly. The Worker is a separate `worker/` directory deployed via `wrangler`.
+
+## Audio source (Revision 1 — replaces Piped fallback chain)
+
+The original design used a fallback chain of public Piped instances. Public instances proved unreliable in practice, so the audio source is now a Cloudflare Worker the user deploys once.
+
+**Architecture:**
+
+```
+GitHub Pages (static)                Cloudflare Worker (free tier)
+  index.html ─────────────────────>   GET /audio?id=VIDEO_ID
+  src/audio.js                         │
+  fetch(`${WORKER_URL}/audio?id=…`)    ├─ POST youtubei/v1/player (ANDROID client)
+                                       ├─ pick lowest-bitrate audio-only format
+                                       └─ pipe upstream bytes back with CORS headers
+                                                          │
+                                                          ▼
+                                                    YouTube (InnerTube API)
+```
+
+**Why ANDROID client, not youtubei.js?** Cloudflare Workers forbid `eval` / `new Function()`. youtubei.js needs them to parse YouTube's signature-deciphering player.js. The ANDROID InnerTube client returns pre-signed audio URLs that need no deciphering — same trick Piped/Invidious use internally. Result: zero npm dependencies in the Worker, ~50 lines of code.
+
+**Worker endpoint:** `GET /audio?id=<11-char YouTube ID>`
+- 200: audio bytes with `Content-Type` from upstream + `Access-Control-Allow-Origin: *`
+- 400: invalid ID
+- 404: wrong path
+- 500: extraction failed (Worker error)
+- 502: upstream YouTube error
+
+**Free tier capacity:** Workers Free = 100,000 requests/day. Each play = 2 Worker requests (InnerTube call + audio fetch). ~50k songs/day. Personal use never gets close.
+
+**Client config:** A single constant `WORKER_URL` in `src/audio.js`. User edits one line after deploying their Worker. README documents the steps.
+
+**Failure modes:**
+1. Worker not deployed or `WORKER_URL` still set to placeholder → frontend throws a clear error pointing to `worker/README.md`
+2. YouTube updates the InnerTube ANDROID client format → Worker returns 502 → user updates `clientVersion` constant in `worker/src/index.js`
+3. Worker hits CPU limit → unlikely (streaming proxy = mostly I/O), but Cloudflare returns 500 → user retries
 
 ## Architecture
 
