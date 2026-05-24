@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Piano Tiles × YouTube</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app">
+    <section id="screen-idle" class="screen">
+      <h1>Piano Tiles × YouTube</h1>
+      <input id="url-input" type="url" placeholder="Paste a YouTube URL" autocomplete="off" inputmode="url">
+      <button id="start-btn">Start</button>
+      <p id="url-error" class="error" hidden></p>
+    </section>
+
+    <section id="screen-loading" class="screen" hidden>
+      <p id="loading-status">Loading…</p>
+      <div class="spinner"></div>
+    </section>
+
+    <section id="screen-ready" class="screen" hidden>
+      <p id="ready-text">Ready</p>
+      <button id="play-btn">Tap to start</button>
+    </section>
+
+    <section id="screen-playing" class="screen" hidden>
+      <header id="hud">
+        <span id="score">0</span>
+        <span id="combo">×0</span>
+        <span id="lives">♥♥♥</span>
+      </header>
+      <canvas id="game-canvas"></canvas>
+    </section>
+
+    <section id="screen-ended" class="screen" hidden>
+      <h2>Game Over</h2>
+      <p id="final-score"></p>
+      <button id="replay-btn">Play again</button>
+      <button id="new-song-btn">New song</button>
+    </section>
+
+    <section id="screen-error" class="screen" hidden>
+      <h2>Audio source unavailable</h2>
+      <p id="error-text"></p>
+      <button id="retry-btn">Retry</button>
+      <button id="new-song-error-btn">New song</button>
+    </section>
+  </main>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
